@@ -698,7 +698,7 @@ def make_action(screen, info, step, env, prev_action):
 ################################################################################
 
 
-env = gym.make("SuperMarioBros-v0", apply_api_compatibility=True, render_mode="none")
+env = gym.make("SuperMarioBros-1-1-v0", apply_api_compatibility=True, render_mode="none")
 env = JoypadSpace(env, SIMPLE_MOVEMENT)
 actions_per_episode = []
 scores_per_episode = []
