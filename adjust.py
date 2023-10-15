@@ -276,12 +276,15 @@ stair_y_threshold = 10
 jump_counter = 0
 is_short_jumping = False
 short_jump_threshhold = 2
+long_jump_threshold = 50
+is_long_jumping = False
+long_jump_counter = 0
 
 momentum = 0
 
 def make_action(screen, info, step, env, prev_action):
 
-    global last_mario_x, static_frame_count, last_enemy_x, last_mario_y, is_in_air, last_action, stair_locator, pipe_stuck, MARIO_MAX_JUMP_HEIGHT, GROUND_LEVEL_Y, stair_x_threshold, stair_y_threshold, jump_counter, is_short_jumping, short_jump_threshhold, momentum
+    global last_mario_x, static_frame_count, last_enemy_x, last_mario_y, is_in_air, last_action, stair_locator, pipe_stuck, MARIO_MAX_JUMP_HEIGHT, GROUND_LEVEL_Y, stair_x_threshold, stair_y_threshold, jump_counter, is_short_jumping, short_jump_threshhold, momentum, long_jump_threshold, is_long_jumping, long_jump_counter
 
 
     mario_status = info["status"]
@@ -388,6 +391,7 @@ def make_action(screen, info, step, env, prev_action):
         return overlap_x and overlap_y
 
     def gap_check(mario_location, block_locations):
+        global long_jump_threshold, is_long_jumping, momentum
         mario_x, mario_y = mario_location
         scan_width = 30
 
@@ -414,11 +418,26 @@ def make_action(screen, info, step, env, prev_action):
                    # print ("the running distance is :, therfore go left", distance_to_gap)
                     momentum = abs(momentum - 5)
                     return 6 # move left for running start   
-                if distance_to_gap > 30:
-                  #  print("getting a run start")
+                if distance_to_gap > 15:
+                    print("getting a run start")
                     return 3 #i gotta run up
-                if distance_to_gap < 20:
-                  #  print("Jumpin due to being close enouf")
+                if distance_to_gap < 10:
+
+                    if not is_long_jumping:
+                        is_long_jumping = True
+                        long_jump_counter = 0
+                        return 4 #start jumping
+                    elif is_long_jumping:
+                        long_jump_counter += 1 
+                        print("long jump counter is ", long_jump_counter)
+                        if long_jump_counter <= long_jump_threshold:
+                            return 4
+                        else:
+                            is_long_jumping = False #reset
+
+                        
+
+                    print("Jumpin due to being close enouf")
                     return 4 # should be able to jump now
                 
 
@@ -536,17 +555,21 @@ def make_action(screen, info, step, env, prev_action):
             if (momentum >= 45):
                 momentum = 45
             
+            if (momentum <= -40):
+                momentum = -40
 
             if(y <= GROUND_LEVEL_Y):
 
                 enemy_distance = abs(mario_x - x)
 
-                print(f"the momentum is{momentum}")
+               # print(f"the momentum is{momentum}")
 
 
                 if (55 <= enemy_distance <= 60):
+                    if (momentum <= 15):
+                            short_jump_threshhold = 11
                     if (momentum <= 40):
-                                short_jump_threshhold = 15
+                                short_jump_threshhold = 10
                     if (momentum > 40):
                                 short_jump_threshhold = 2
 
@@ -554,7 +577,7 @@ def make_action(screen, info, step, env, prev_action):
 
                 if (enemy_distance <= 52):
                     print("The distance of enemy is :", enemy_distance)
-                   # print("Enemy is in jumpable range")
+                    print("Enemy is in jumpable range")
 
                     block_in_path = False
                     while True:
@@ -565,11 +588,11 @@ def make_action(screen, info, step, env, prev_action):
                                 block_in_path = True
                                 break
                         if block_in_path:
-                          #  print("Block was in the way")
-                            momentum = abs(momentum - 5)
+                            print("Block was in the way")
+                            momentum -= 1
                             return 6 # Move left
                         else:
-                           # print("Block not in jump path and i should jump now")
+                            print("Block not in jump path and i should jump now")
                             
 
                             min_air_distance_enemy = y + 5
@@ -579,24 +602,25 @@ def make_action(screen, info, step, env, prev_action):
                                 
                                 
                                 if (mario_x < x):
-                                  #  print("Enemy above on the right move to left")
-                                    momentum = abs(momentum - 5)
+                                    print("Enemy above on the right move to left")
+                                    momentum -= 1
                                     return 6 # move left to avoid
                                 if (mario_x > x):   
-                                  #  print("Enemy above on the left move to right")
+                                    print("Enemy above on the left move to right")
                                     return 3 #move right to above
                                     
                             if is_in_air ==  True and min_air_distance_mario < y:
                                 if (mario_x < x):
-                                  #  print("Mario needs to move right to jump on him")
+                                    print("Mario needs to move right to jump on him")
                                     momentum += 1
                                     return 1
                                 
                                 if (mario_x > x):
-                                  #  print("Mario needs to move left to jump on him")
+                                    print("Mario needs to move left to jump on him")
+                                    momentum -=1
                                     return 6
                                 if (mario_x == x):
-                                  #  print("Mario is directly on top")
+                                    print("Mario is directly on top")
                                     momentum -= 1
                                     return 0
                                 
@@ -604,18 +628,18 @@ def make_action(screen, info, step, env, prev_action):
                             
                             
                             if (enemy_distance < 25 and x - mario_x > 0):
-                                #print("ENEMY too close gotta move left")
+                                print("ENEMY too close gotta move left")
                                 return 6# move left away from enemy as too close to jump
                             
                             if min_air_distance_enemy < mario_y : #enemy in the air above mario
                                 
                                 
                                 if (mario_x < x):
-                                  #  print("Enemy above on the right move to left")
+                                    print("Enemy above on the right move to left")
                                     momentum = abs(momentum - 5)
                                     return 6 # move left to avoid
                                 if (mario_x > x):   
-                                   # print("Enemy above on the left move to right")
+                                    print("Enemy above on the left move to right")
                                     return 3 #move right to above
 
 
@@ -656,7 +680,7 @@ def make_action(screen, info, step, env, prev_action):
         
         if gap_check(location, block_locations) == 6:
             return 6
-        if gap_check(location, block_locations) == 2:
+        if gap_check(location, block_locations) == 3:
             return 3
         if gap_check(location, block_locations) == 4:
           #  print("Jumping due to the gap")
