@@ -391,7 +391,7 @@ def make_action(screen, info, step, env, prev_action):
         return overlap_x and overlap_y
 
     def gap_check(mario_location, block_locations):
-        global long_jump_threshold, is_long_jumping, momentum
+        global long_jump_threshold, is_long_jumping, momentum, long_jump_counter
         mario_x, mario_y = mario_location
         scan_width = 30
 
