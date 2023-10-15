@@ -275,7 +275,7 @@ stair_y_threshold = 10
 
 def make_action(screen, info, step, env, prev_action):
 
-    global last_mario_x, static_frame_count, last_enemy_x, last_mario_y, is_in_air, last_action, stair_locator, pipe_stuck, MARIO_MAX_JUMP_HEIGHT, GROUND_LEVEL_Y
+    global last_mario_x, static_frame_count, last_enemy_x, last_mario_y, is_in_air, last_action, stair_locator, pipe_stuck, MARIO_MAX_JUMP_HEIGHT, GROUND_LEVEL_Y, stair_x_threshold, stair_y_threshold
 
 
     mario_status = info["status"]
@@ -431,7 +431,7 @@ def make_action(screen, info, step, env, prev_action):
                 
                 if(mario_y < block_y):
                     print("Mario is above pipe")
-                    return 4
+                    return 1
                 
                 if (block_x - mario_x < 20):
                     #print("Too close to pipe")
