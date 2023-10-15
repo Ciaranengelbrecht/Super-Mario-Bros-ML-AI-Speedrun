@@ -591,6 +591,7 @@ for step in range(100000):
     score_difference = info['score'] - previous_score
     if score_difference == 100:
         current_kills += 1
+    previous_score = info['score']
     if info.get('flag_get'):
             print("Mario reached the flag!")
             time_taken_game = 400 - info['time']
