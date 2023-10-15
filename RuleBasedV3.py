@@ -723,7 +723,7 @@ for step in range(100000):
 
     if info.get('flag_get'):
             print("Mario reached the flag!")
-            time_taken_game = 400 - info[0]['time']
+            time_taken_game = 400 - info['time']
             in_game_times.append(time_taken_game)
             print(f"Time taken in game: {time_taken_game}")
 
