@@ -276,15 +276,16 @@ stair_y_threshold = 10
 jump_counter = 0
 is_short_jumping = False
 short_jump_threshhold = 2
-long_jump_threshold = 50
+long_jump_threshold = 100
 is_long_jumping = False
 long_jump_counter = 0
-
+cheese_strat = 0
+enemy_distance_threshold = 52
 momentum = 0
 
 def make_action(screen, info, step, env, prev_action):
 
-    global last_mario_x, static_frame_count, last_enemy_x, last_mario_y, is_in_air, last_action, stair_locator, pipe_stuck, MARIO_MAX_JUMP_HEIGHT, GROUND_LEVEL_Y, stair_x_threshold, stair_y_threshold, jump_counter, is_short_jumping, short_jump_threshhold, momentum, long_jump_threshold, is_long_jumping, long_jump_counter
+    global last_mario_x, static_frame_count, last_enemy_x, last_mario_y, is_in_air, last_action, stair_locator, pipe_stuck, MARIO_MAX_JUMP_HEIGHT, GROUND_LEVEL_Y, stair_x_threshold, stair_y_threshold, jump_counter, is_short_jumping, short_jump_threshhold, momentum, long_jump_threshold, is_long_jumping, long_jump_counter, cheese_strat, enemy_distance_threshold
 
 
     mario_status = info["status"]
@@ -297,7 +298,7 @@ def make_action(screen, info, step, env, prev_action):
     # Printing the whole grid is slow, so I am only printing it occasionally,
     # and I'm only printing it for debug purposes, to see if I'm locating objects
     # correctly.
-   # if PRINT_GRID and step % 100 == 0:
+    if PRINT_GRID and step % 100 == 0:
        # print_grid(screen, object_locations)
         # If printing the grid doesn't display in an understandable way, change
         # the settings of your terminal (or anaconda prompt) to have a smaller
@@ -305,7 +306,7 @@ def make_action(screen, info, step, env, prev_action):
         # terminal window / whole screen.
 
         # object_locations contains the locations of all the objects we found
-        #print(object_locations)
+        print(object_locations)
 
     # List of locations of Mario:
     mario_locations = object_locations["mario"]
@@ -416,12 +417,12 @@ def make_action(screen, info, step, env, prev_action):
 
                 if 0 < distance_to_gap < 10:
                    # print ("the running distance is :, therfore go left", distance_to_gap)
-                    momentum = abs(momentum - 5)
+                    momentum -= 5
                     return 6 # move left for running start   
-                if distance_to_gap > 15:
+                if distance_to_gap > 30:
                     print("getting a run start")
                     return 3 #i gotta run up
-                if distance_to_gap < 10:
+                if distance_to_gap < 20:
 
                     if not is_long_jumping:
                         is_long_jumping = True
@@ -481,7 +482,7 @@ def make_action(screen, info, step, env, prev_action):
            # print("Mario_x position is ", mario_x, mario_y)
            # print("The block x and y position are ", block_x, block_y)
             if block_name == "block" and (block_x - mario_x) <= stair_x_threshold and abs(mario_y - block_y) <= stair_y_threshold:
-             #   print("There is a stair infront")
+                print("There is a stair infront")
                 return True
         return False
 
@@ -567,98 +568,75 @@ def make_action(screen, info, step, env, prev_action):
 
                 if (55 <= enemy_distance <= 60):
                     if (momentum <= 15):
-                            short_jump_threshhold = 11
+                                short_jump_threshhold = 30
+                              #  enemy_distance_threshold = 20
                     if (momentum <= 40):
-                                short_jump_threshhold = 10
+                                short_jump_threshhold = 25
+                               # enemy_distance_threshold = 30
                     if (momentum > 40):
                                 short_jump_threshhold = 2
+                                enemy_distance_threshold = 55
 
 
 
-                if (enemy_distance <= 52):
+                if (enemy_distance <= enemy_distance_threshold):
                     print("The distance of enemy is :", enemy_distance)
                     print("Enemy is in jumpable range")
-
-                    block_in_path = False
-                    while True:
-                        for block in block_locations:
-                            block_location, block_dimensions, block_name = block
-
-                            if is_overlapping(jump_path_top_left, jump_path_bottom_right, block_location, block_dimensions):
-                                block_in_path = True
-                                break
-                        if block_in_path:
-                            print("Block was in the way")
+                    min_air_distance_enemy = y + 5
+                    min_air_distance_mario = x + 5
+                    koopa_height = 170
+                    if min_air_distance_enemy < koopa_height < mario_y : #enemy in the air above mario
+                        
+                        
+                        if (mario_x < x):
+                            print("Enemy above on the right move to left")
+                            momentum += 3
+                            return 3 # move left to avoid
+                        if (mario_x > x):   
+                            print("Enemy above on the left move to right")
+                            momentum += 3
+                            return 3 #move right to above
+                            
+                    if is_in_air ==  True and min_air_distance_mario < y:
+                        if (mario_x < x):
+                            print("Mario needs to move right to jump on him")
+                            momentum += 1
+                            return 1
+                        
+                        if (mario_x > x):
+                            print("Mario needs to move left to jump on him")
+                            #momentum -=5
+                            #return 6
+                        if (mario_x == x):
+                            print("Mario is directly on top")
                             momentum -= 1
-                            return 6 # Move left
+                            return 0
+                        
+                    
+                    
+                    
+                    if (enemy_distance < 25 and x - mario_x > 0):
+                        print("ENEMY too close gotta move left")
+                        momentum -= 5
+                        return 6# move left away from enemy as too close to jump
+                    
+
+                    if not is_short_jumping:
+                        is_short_jumping = True
+                        jump_counter = 0
+                        print("Started short jump")
+                        return 4 # start jump
+                    elif is_short_jumping:
+                        print(f"This is the threshold doing it with {short_jump_threshhold}")
+                        print("Doing the short jump")
+                        jump_counter += 1
+                        if jump_counter < short_jump_threshhold:
+                            return 4
                         else:
-                            print("Block not in jump path and i should jump now")
-                            
-
-                            min_air_distance_enemy = y + 5
-                            min_air_distance_mario = x + 5
-
-                            if min_air_distance_enemy < mario_y : #enemy in the air above mario
-                                
-                                
-                                if (mario_x < x):
-                                    print("Enemy above on the right move to left")
-                                    momentum -= 1
-                                    return 6 # move left to avoid
-                                if (mario_x > x):   
-                                    print("Enemy above on the left move to right")
-                                    return 3 #move right to above
-                                    
-                            if is_in_air ==  True and min_air_distance_mario < y:
-                                if (mario_x < x):
-                                    print("Mario needs to move right to jump on him")
-                                    momentum += 1
-                                    return 1
-                                
-                                if (mario_x > x):
-                                    print("Mario needs to move left to jump on him")
-                                    momentum -=1
-                                    return 6
-                                if (mario_x == x):
-                                    print("Mario is directly on top")
-                                    momentum -= 1
-                                    return 0
-                                
-                            
-                            
-                            
-                            if (enemy_distance < 25 and x - mario_x > 0):
-                                print("ENEMY too close gotta move left")
-                                return 6# move left away from enemy as too close to jump
-                            
-                            if min_air_distance_enemy < mario_y : #enemy in the air above mario
-                                
-                                
-                                if (mario_x < x):
-                                    print("Enemy above on the right move to left")
-                                    momentum = abs(momentum - 5)
-                                    return 6 # move left to avoid
-                                if (mario_x > x):   
-                                    print("Enemy above on the left move to right")
-                                    return 3 #move right to above
-
-
-                            if not is_short_jumping:
-                                is_short_jumping = True
-                                jump_counter = 0
-                                print("Started short jump")
-                                return 4 # start jump
-                            elif is_short_jumping:
-                                print(f"This is the threshold doing it with {short_jump_threshhold}")
-                                print("Doing the short jump")
-                                jump_counter += 1
-                                if jump_counter < short_jump_threshhold:
-                                    return 4
-                                else:
-                                    print("Short jump reset time")
-                                    is_short_jumping = False #reset jump state
-                                    momentum -= 0
-                                    return 0
+                            print("Short jump reset time")
+                            is_short_jumping = False #reset jump state
+                            momentum -= 0
+                            return 0
 
                 
 
@@ -683,7 +661,7 @@ def make_action(screen, info, step, env, prev_action):
         if gap_check(location, block_locations) == 3:
             return 3
         if gap_check(location, block_locations) == 4:
-          #  print("Jumping due to the gap")
+            print("Jumping due to the gap")
             return 4
         
         #pipe method use
@@ -713,10 +691,13 @@ def make_action(screen, info, step, env, prev_action):
 
 
         if stair_located(location, block_locations):
-          #  print("Stair do be infront")
+            print("Stair do be infront")
             stair_locator += 1
+            print("stair_locator: ", stair_locator)
             if stair_locator >= 100:
-             #   print("Probs stuck in between hole, letting go of jump")
+                cheese_strat += 1
+                print("cheese strat number is", cheese_strat)
+                print("Probs stuck in between hole, letting go of jump")
                 stair_locator = 0 #rest
                 return 0
             return 4
@@ -771,12 +752,15 @@ scores_per_episode = []
 distances_per_episode = []
 coins_per_episode = []
 in_game_times = []
+kills_per_episode = []
 obs = None
 done = True
 env.reset()
 action_count = 0
 episode_count = 0
-max_episodes = 10 
+max_episodes = 100
+current_kills = 0
+previous_score = 0
 
 for step in range(100000):
     if obs is not None:
@@ -786,7 +770,10 @@ for step in range(100000):
 
     obs, reward, terminated, truncated, info = env.step(action)
     action_count += 1
-
+    score_difference = info['score'] - previous_score
+    if score_difference == 100:
+        current_kills += 1
+    previous_score = info['score']
     if info.get('flag_get'):
             print("Mario reached the flag!")
             time_taken_game = 400 - info['time']
@@ -802,8 +789,11 @@ for step in range(100000):
         scores_per_episode.append(info['score'])
         distances_per_episode.append(info['x_pos'])
         coins_per_episode.append(info['coins'])
+        kills_per_episode.append(current_kills)
 
-        action_count = 0        
+        action_count = 0    
+        current_kills = 0 
+        previous_score = 0     
         env.reset()
 
         if episode_count >= max_episodes:
@@ -844,6 +834,12 @@ plt.plot(coins_per_episode, label='Coins Collected', color='gold')
 plt.xlabel('Episode')
 plt.ylabel('Coins Collected')
 plt.title('Coins Collected per Episode')
+
+plt.subplot(2, 3, 6)
+plt.plot(kills_per_episode, label='Kills', color='red')
+plt.xlabel('Episode')
+plt.ylabel('Kills')
+plt.title('Kills per Episode')
 
 plt.tight_layout()
 plt.show()
