@@ -159,7 +159,7 @@ def print_grid(obs, object_locations):
                 pixels[(x+width-1, y+i)] = name_str[(i+width-1)%len(name_str)]
 
     # print the screen to terminal
-    print("-"*SCREEN_WIDTH)
+ #   print("-"*SCREEN_WIDTH)
     for y in range(SCREEN_HEIGHT):
         line = []
         for x in range(SCREEN_WIDTH):
@@ -172,7 +172,7 @@ def print_grid(obs, object_locations):
                 # get the colour symbol for this colour
                 colour = _get_colour(obs[y][x])
             line.append(colour)
-        print("".join(line))
+  #      print("".join(line))
         
         
 ################################################################################
@@ -264,10 +264,18 @@ last_mario_y = None
 is_in_air = False
 static_frame_count = 0
 last_enemy_x = None
+last_action = None
+x_positions = [0] * 10
+stair_locator = 0
+pipe_stuck = 0
+MARIO_MAX_JUMP_HEIGHT = 64
+GROUND_LEVEL_Y = 194
+stair_x_threshold = 20
+stair_y_threshold = 10
 
 def make_action(screen, info, step, env, prev_action):
 
-    global last_mario_x, static_frame_count, last_enemy_x, last_mario_y, is_in_air
+    global last_mario_x, static_frame_count, last_enemy_x, last_mario_y, is_in_air, last_action, stair_locator, pipe_stuck, MARIO_MAX_JUMP_HEIGHT, GROUND_LEVEL_Y
 
 
     mario_status = info["status"]
@@ -364,10 +372,7 @@ def make_action(screen, info, step, env, prev_action):
     #              action = 1 means press 'right' button
     #              action = 2 means press 'right' and 'A' buttons at the same time
 
-    MARIO_MAX_JUMP_HEIGHT = 64
-    MARIO_JUMP_DISTANCE = 48
-    MARIO_WIDTH_DEFAULT = 16
-    MARIO_HEIGHT_DEFAULT = 16
+
 
 
     #Mario Jump path checker
@@ -375,13 +380,6 @@ def make_action(screen, info, step, env, prev_action):
         overlap_x = top_left2[0] + dimensions2[0] > top_left1[0] and top_left2[0] < bottom_right1[0]
         overlap_y = top_left2[1] + dimensions2[1] > top_left1[1] and top_left2[1] < bottom_right1[1]
         return overlap_x and overlap_y
-
-
-    GROUND_LEVEL_Y = 194
-
-    
-    #gap check is working fine (Pretty sure it is detecting gap almsot perfectly), but the jump is off
-    # do have to check the way block coords are being given it seems a bit weird.
 
     def gap_check(mario_location, block_locations):
         mario_x, mario_y = mario_location
@@ -407,21 +405,15 @@ def make_action(screen, info, step, env, prev_action):
                 distance_to_gap = mario_x - x
 
                 if 0 < distance_to_gap < 10:
-                    print ("the running distance is :, therfore go left", distance_to_gap)
+                   # print ("the running distance is :, therfore go left", distance_to_gap)
                     return 6 # move left for running start   
                 if distance_to_gap > 30:
-                    print("getting a run start")
-                    return 2 #i gotta run up
+                  #  print("getting a run start")
+                    return 3 #i gotta run up
                 if distance_to_gap < 20:
-                    print("Jumpin due to being close enouf")
+                  #  print("Jumpin due to being close enouf")
                     return 4 # should be able to jump now
                 
-
-    
-    #pipe works to an extent, need to work out funky jump problems
-
-    first_iteration = 0
-
 
     def detect_pipe(mario_location, block_locations):
         mario_x, mario_y = mario_location
@@ -429,29 +421,46 @@ def make_action(screen, info, step, env, prev_action):
 
         for block in block_locations:
             block_x, block_y = block[0]
-            block_width, block_height = block[1]
             block_name = block[2]
 
            # print(f"There is a block with name {block_name} at x: {block_x}, y: {block_y}")
 
             #check for pipe infront
             if "pipe" in block_name and block_x > mario_x:
-                #print("There is a deadass pipe in front")
-                
+
                 
                 if(mario_y < block_y):
                     print("Mario is above pipe")
-                    return 3
+                    return 4
                 
                 if (block_x - mario_x < 20):
-                    #print("Too close to the damn pipe")
+                    #print("Too close to pipe")
                     return 1
                 if (block_x - mario_x) < distance_threshold:
-                    print("Pipe is within mario jump threshold")
-                    return 2
+                   # print("Pipe is within mario jump threshold")
+                    return 3
 
         return False
 
+
+    def stair_located(mario_location, block_locations):
+        #Function to decide what to do when met with stairs
+        mario_x , mario_y = mario_location
+
+        for block in block_locations:
+            block_x, block_y = block[0]
+            block_name = block[2]
+
+            #check if block infront
+           # print("Mario_x position is ", mario_x, mario_y)
+           # print("The block x and y position are ", block_x, block_y)
+            if block_name == "block" and (block_x - mario_x) <= stair_x_threshold and abs(mario_y - block_y) <= stair_y_threshold:
+                print("There is a stair infront")
+                return True
+        return False
+
+
+    
     
 
     if mario_locations:
@@ -471,31 +480,39 @@ def make_action(screen, info, step, env, prev_action):
 
         if last_mario_x is None:
             last_mario_x = mario_x
-            print("Last_mario_x updated to ", last_mario_x)
+           # print("Last_mario_x updated to ", last_mario_x)
 
-        if mario_x == last_mario_x and 193 <= mario_y :
+        if mario_x == last_mario_x:
             static_frame_count +=1
            # print("static frame count updated to : ",static_frame_count)
-           # print("mario y location is ", mario_y)
+           # print("mario x location is ", mario_x, last_mario_x)
         
         else:
             last_mario_x = mario_x
             static_frame_count = 0
         
-        if static_frame_count >= 10:
-            print("This guy stuck for longer than 50 frames")
+        if static_frame_count >= 100:
+           # print("This guy stuck for longer than 100 frames")
             static_frame_count = 0 # reset count
-            return 4 # changed to be able to jump
+
+            if last_action == 4:
+                last_action = 0
+               # print("Letting go of jump")
+                return 0
+            else:
+                last_action = 4
+               # print("Jumping cuz stuck")
+                return 4 # changed to let go of jump button
         
 
         if last_mario_y is not None and mario_y > last_mario_y:
             is_in_air = True
-            #print("MARIO IN DA AIR")
+            #print("MARIO in AIR")
 
         if last_mario_y is not None and mario_y < last_mario_y and is_in_air:
             is_in_air = False
-            print("Jump was released")
-            return 0 # Release the jump button
+            #print("Jump was released")
+            #return 0  Release the jump button
         #print(f"Last_mario_y:{last_mario_y}, mario_y: {mario_y} ")
         last_mario_y = mario_y
         #print(f"Last_mario_y:{last_mario_y}, mario_y: {mario_y} ")
@@ -504,53 +521,82 @@ def make_action(screen, info, step, env, prev_action):
             enemy_location, enemy_dimensions, enemy_name = enemy
             x, y = enemy_location
             width, height = enemy_dimensions
-            print("enemy:", x, y, width, height, enemy_name)
-            print("Mario x position is ", mario_x)
+            #print("enemy:", x, y, width, height, enemy_name)
+            #print(f"Mario x position is {mario_x} and y position is {mario_y}")
 
-            enemy_distance = abs(mario_x - x)
-            enemy_above_distance_check = mario_x - x
+            if(y <= GROUND_LEVEL_Y):
 
-            
-            if last_enemy_x is None:
-                last_enemy_x = mario_x
-                print("Last_enemy_x updated to ", last_enemy_x)
+                enemy_distance = abs(mario_x - x)
 
-           
 
-            #if mario_y <= 190:
-                #mario is above ground on solid ground
+                if (enemy_distance <= 52):
+                   # print("The distance of enemy is :", enemy_distance)
+                   # print("Enemy is in jumpable range")
+
+                    block_in_path = False
+                    while True:
+                        for block in block_locations:
+                            block_location, block_dimensions, block_name = block
+
+                            if is_overlapping(jump_path_top_left, jump_path_bottom_right, block_location, block_dimensions):
+                                block_in_path = True
+                                break
+                        if block_in_path:
+                            #print("Block was in the way")
+                            return 6 # Move left
+                        else:
+                           # print("Block not in jump path and i should jump now")
+                            
+
+                            min_air_distance_enemy = y + 5
+                            min_air_distance_mario = x + 5
+
+                            if min_air_distance_enemy < mario_y : #enemy in the air above mario
+                                
+                                
+                                if (mario_x < x):
+                                  #  print("Enemy above on the right move to left")
+                                    return 6 # move left to avoid
+                                if (mario_x > x):   
+                                   # print("Enemy above on the left move to right")
+                                    return 3 #move right to above
+                                    
+                            if is_in_air ==  True and min_air_distance_mario < y:
+                                if (mario_x < x):
+                                   # print("Mario needs to move right to jump on him")
+                                    return 1
+                                
+                                if (mario_x > x):
+                                   # print("Mario needs to move left to jump on him")
+                                    return 6
+                                if (mario_x == x):
+                                   # print("Mario is directly on top")
+                                    return 0
+                                
+                            
+                            
+                            
+                            if (enemy_distance < 25 and x - mario_x > 0):
+                                #print("ENEMY too close gotta move left")
+                                return 6# move left away from enemy as too close to jump
+                            
+                            if min_air_distance_enemy < mario_y : #enemy in the air above mario
+                                
+                                
+                                if (mario_x < x):
+                                  #  print("Enemy above on the right move to left")
+                                    return 6 # move left to avoid
+                                if (mario_x > x):   
+                                  #  print("Enemy above on the left move to right")
+                                    return 3 #move right to above
+
+
+                            else:
+                               # print("Jumpin due to the enemy thing")
+                                return 4
 
                 
-                #if last_enemy_x > x  and  190 >= mario_y :
-                    #return 0 #Enemy is moving left while mario is above ground
-           # print("static frame count updated to : ",static_frame_count)
-            # print("mario y location is ", mario_y)
 
-
-            if (enemy_distance <= 52):
-                print("The distance of enemy is :", enemy_distance)
-                print("Enemy is in jumpable range")
-
-                block_in_path = False
-                while True:
-                    for block in block_locations:
-                        block_location, block_dimensions, block_name = block
-
-                        if is_overlapping(jump_path_top_left, jump_path_bottom_right, block_location, block_dimensions):
-                            block_in_path = True
-                            break
-                    if block_in_path:
-                        print("Block was in the way")
-                        return 6 # Move left
-                    else:
-                        print("Block not in jump path and i should jump now")
-                        if (enemy_distance < 25 and x - mario_x > 0):
-                            print("ENEMY too close gotta move left")
-                            return 6# move left away from enemy as too close to jump
-                        else:
-                            print("Jumpin due to the enemy thing")
-                            return 4
-        
         
         
         
@@ -558,7 +604,7 @@ def make_action(screen, info, step, env, prev_action):
         
         
         if mario_x < 10:
-            return 2 # Run right
+            return 3 # Run right
         
         
         
@@ -570,9 +616,9 @@ def make_action(screen, info, step, env, prev_action):
         if gap_check(location, block_locations) == 6:
             return 6
         if gap_check(location, block_locations) == 2:
-            return 2
+            return 3
         if gap_check(location, block_locations) == 4:
-            print("Jumping due to the gap")
+          #  print("Jumping due to the gap")
             return 4
         
         #pipe method use
@@ -585,26 +631,34 @@ def make_action(screen, info, step, env, prev_action):
 
         if  pipe_check != False:
             if pipe_check == 1:
-                print("I should move left due to pipe being close")
-                
-                print("printing jumpin due to the pipe check")
+             #   print("printing jumpin due to the pipe check")
+               # print("pipe do be infront")
+                pipe_stuck += 1
+                if pipe_stuck >= 100:
+                  #  print("Probs stuck in between pipe, letting go of jump")
+                    pipe_stuck = 0 #rest
+                    return 0
                 return 4
             if pipe_check == 2:
-                print("I should be able to jump due to pipe")
+               # print("I should be able to jump due to pipe")
                 return 4
             if pipe_check == 3:
-                return 2
-
-            print("HELLO WHY AM I NOT JUMPING?")
+                return 3
 
 
+        if stair_located(location, block_locations):
+          #  print("Stair do be infront")
+            stair_locator += 1
+            if stair_locator >= 100:
+             #   print("Probs stuck in between hole, letting go of jump")
+                stair_locator = 0 #rest
+                return 0
+            return 4
 
-
-        
     
                       
                     
-    """ work out how to do question blocks later
+    """ Potential Questionblock method for more score
     for block in block_locations:
             block_location, block_dimensions, block_name = block
             block_x, block_y = block_location
@@ -625,7 +679,7 @@ def make_action(screen, info, step, env, prev_action):
         
     
     #print("I reached i should be moving right")
-    return 2
+    return 1
 
 
     if step % 10 == 0:
