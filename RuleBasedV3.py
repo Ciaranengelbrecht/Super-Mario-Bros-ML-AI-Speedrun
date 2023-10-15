@@ -4,6 +4,7 @@ import gym
 import cv2 as cv
 import numpy as np
 import string
+import matplotlib.pyplot as plt
 
 # code for locating objects on the screen in super mario bros
 # by Lauren Gee
@@ -696,19 +697,87 @@ def make_action(screen, info, step, env, prev_action):
 
 ################################################################################
 
-env = gym.make("SuperMarioBros-v0", apply_api_compatibility=True, render_mode="human")
-env = JoypadSpace(env, SIMPLE_MOVEMENT)
 
+env = gym.make("SuperMarioBros-v0", apply_api_compatibility=True, render_mode="none")
+env = JoypadSpace(env, SIMPLE_MOVEMENT)
+actions_per_episode = []
+scores_per_episode = []
+distances_per_episode = []
+coins_per_episode = []
+in_game_times = []
 obs = None
 done = True
 env.reset()
+action_count = 0
+episode_count = 0
+max_episodes = 50 
+
 for step in range(100000):
     if obs is not None:
         action = make_action(obs, info, step, env, action)
     else:
         action = env.action_space.sample()
+
     obs, reward, terminated, truncated, info = env.step(action)
+    action_count += 1
+
+    if info.get('flag_get'):
+            print("Mario reached the flag!")
+            time_taken_game = 400 - info[0]['time']
+            in_game_times.append(time_taken_game)
+            print(f"Time taken in game: {time_taken_game}")
+
     done = terminated or truncated
     if done:
+        episode_count += 1
+        print(f"Episode {episode_count} finished after {action_count} actions")
+        
+        actions_per_episode.append(action_count)
+        scores_per_episode.append(info['score'])
+        distances_per_episode.append(info['x_pos'])
+        coins_per_episode.append(info['coins'])
+
+        action_count = 0        
         env.reset()
+
+        if episode_count >= max_episodes:
+            break
 env.close()
+
+
+# Plotting the metrics
+plt.figure(figsize=(14, 8))
+
+plt.subplot(2, 3, 1)
+plt.plot(actions_per_episode, label='Actions Taken')
+plt.xlabel('Episode')
+plt.ylabel('Actions Taken')
+plt.title('Actions Taken per Episode')
+
+plt.subplot(2, 3, 2)
+plt.plot(in_game_times, label='In-Game Time', color='orange')
+plt.xlabel('Episode of Reaching Flag')
+plt.ylabel('Time (in-game time)')
+plt.title('In-Game Time to Reach Flag')
+
+
+plt.subplot(2, 3, 3)
+plt.plot(scores_per_episode, label='Episode Reward', color='green')
+plt.xlabel('Episode')
+plt.ylabel('Episode Reward')
+plt.title(' Reward per Episode')
+
+plt.subplot(2, 3, 4)
+plt.plot(distances_per_episode, label='Distance Reached', color='purple')
+plt.xlabel('Episode')
+plt.ylabel('Distance Reached')
+plt.title('Distance Reached per Episode')
+
+plt.subplot(2, 3, 5)
+plt.plot(coins_per_episode, label='Coins Collected', color='gold')
+plt.xlabel('Episode')
+plt.ylabel('Coins Collected')
+plt.title('Coins Collected per Episode')
+
+plt.tight_layout()
+plt.show()
