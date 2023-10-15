@@ -758,7 +758,7 @@ done = True
 env.reset()
 action_count = 0
 episode_count = 0
-max_episodes = 100
+max_episodes = 500
 current_kills = 0
 previous_score = 0
 
