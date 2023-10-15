@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 ################################################################################
 
 # change these values if you want more/less printing
-PRINT_GRID      = True
+PRINT_GRID      = False
 PRINT_LOCATIONS = False
 
 # If printing the grid doesn't display in an understandable way, change the
@@ -116,66 +116,7 @@ for category in image_files:
             category_templates[object_name] = get_template(filenames)
     templates[category] = category_templates
 
-################################################################################
-# PRINTING THE GRID (for debug purposes)
 
-
-
-colour_map = {
-    (104, 136, 252): " ", # sky blue colour
-    (0,     0,   0): " ", # black
-    (252, 252, 252): "'", # white / cloud colour
-    (248,  56,   0): "M", # red / mario colour
-    (228,  92,  16): "%", # brown enemy / block colour
-}
-unused_letters = sorted(set(string.ascii_uppercase) - set(colour_map.values()),reverse=True)
-DEFAULT_LETTER = "?"
-
-def _get_colour(colour): # colour must be 3 ints
-    colour = tuple(colour)
-    if colour in colour_map:
-        return colour_map[colour]
-    
-    # if we haven't seen this colour before, pick a letter to represent it
-    if unused_letters:
-        letter = unused_letters.pop()
-        colour_map[colour] = letter
-        return letter
-    else:
-        return DEFAULT_LETTER
-
-def print_grid(obs, object_locations):
-    pixels = {}
-    # build the outlines of located objects
-    for category in object_locations:
-        for location, dimensions, object_name in object_locations[category]:
-            x, y = location
-            width, height = dimensions
-            name_str = object_name.replace("_", "-") + "-"
-            for i in range(width):
-                pixels[(x+i, y)] = name_str[i%len(name_str)]
-                pixels[(x+i, y+height-1)] = name_str[(i+height-1)%len(name_str)]
-            for i in range(1, height-1):
-                pixels[(x, y+i)] = name_str[i%len(name_str)]
-                pixels[(x+width-1, y+i)] = name_str[(i+width-1)%len(name_str)]
-
-    # print the screen to terminal
- #   print("-"*SCREEN_WIDTH)
-    for y in range(SCREEN_HEIGHT):
-        line = []
-        for x in range(SCREEN_WIDTH):
-            coords = (x, y)
-            if coords in pixels:
-                # this pixel is part of an outline of an object,
-                # so use that instead of the normal colour symbol
-                colour = pixels[coords]
-            else:
-                # get the colour symbol for this colour
-                colour = _get_colour(obs[y][x])
-            line.append(colour)
-  #      print("".join(line))
-        
-        
 ################################################################################
 # LOCATING OBJECTS
 
@@ -273,7 +214,8 @@ MARIO_MAX_JUMP_HEIGHT = 64
 GROUND_LEVEL_Y = 194
 stair_x_threshold = 20
 stair_y_threshold = 10
-
+long_jump_threshold = 20
+is_long_jumping = False
 def make_action(screen, info, step, env, prev_action):
 
     global last_mario_x, static_frame_count, last_enemy_x, last_mario_y, is_in_air, last_action, stair_locator, pipe_stuck, MARIO_MAX_JUMP_HEIGHT, GROUND_LEVEL_Y, stair_x_threshold, stair_y_threshold
@@ -281,23 +223,6 @@ def make_action(screen, info, step, env, prev_action):
 
     mario_status = info["status"]
     object_locations = locate_objects(screen, mario_status)
-
-    # You probably don't want to print everything I am printing when you run
-    # your code, because printing slows things down, and it puts a LOT of
-    # information in your terminal.
-
-    # Printing the whole grid is slow, so I am only printing it occasionally,
-    # and I'm only printing it for debug purposes, to see if I'm locating objects
-    # correctly.
-    if PRINT_GRID and step % 100 == 0:
-       # print_grid(screen, object_locations)
-        # If printing the grid doesn't display in an understandable way, change
-        # the settings of your terminal (or anaconda prompt) to have a smaller
-        # font size, so that everything fits on the screen. Also, use a large
-        # terminal window / whole screen.
-
-        # object_locations contains the locations of all the objects we found
-        print(object_locations)
 
     # List of locations of Mario:
     mario_locations = object_locations["mario"]
@@ -314,68 +239,8 @@ def make_action(screen, info, step, env, prev_action):
     # List of locations of items: (so far, it only finds mushrooms)
     item_locations = object_locations["item"]
 
-    # This is the format of the lists of locations:
-    # ((x_coordinate, y_coordinate), (object_width, object_height), object_name)
-    #
-    # x_coordinate and y_coordinate are the top left corner of the object
-    #
-    # For example, the enemy_locations list might look like this:
-    # [((161, 193), (16, 16), 'goomba'), ((175, 193), (16, 16), 'goomba')]
+ 
     
-    if PRINT_LOCATIONS:
-        # To get the information out of a list:
-        for enemy in enemy_locations:
-            enemy_location, enemy_dimensions, enemy_name = enemy
-            x, y = enemy_location
-            width, height = enemy_dimensions
-            print("enemy:", x, y, width, height, enemy_name)
-
-        # Or you could do it this way:
-        for block in block_locations:
-            block_x = block[0][0]
-            block_y = block[0][1]
-            block_width = block[1][0]
-            block_height = block[1][1]
-            block_name = block[2]
-            print(f"{block_name}: {(block_x, block_y)}), {(block_width, block_height)}")
-
-        # Or you could do it this way:
-        for item_location, item_dimensions, item_name in item_locations:
-            x, y = item_location
-            print(item_name, x, y)
-
-        # gym-super-mario-bros also gives us some info that might be useful
-        print(info)
-        # see https://pypi.org/project/gym-super-mario-bros/ for explanations
-
-        # The x and y coordinates in object_locations are screen coordinates.
-        # Top left corner of screen is (0, 0), top right corner is (255, 0).
-        # Here's how you can get Mario's screen coordinates:
-        if mario_locations:
-            location, dimensions, object_name = mario_locations[0]
-            mario_x, mario_y = location
-            print("Mario's location on screen:",
-                  mario_x, mario_y, f"({object_name} mario)")
-        
-        # The x and y coordinates in info are world coordinates.
-        # They tell you where Mario is in the game, not his screen position.
-        mario_world_x = info["x_pos"]
-        mario_world_y = info["y_pos"]
-        # Also, you can get Mario's status (small, tall, fireball) from info too.
-        mario_status = info["status"]
-        print("Mario's location in world:",
-              mario_world_x, mario_world_y, f"({mario_status} mario)")
-
-    # TODO: Write code for a strategy, such as a rule based agent.
-
-    # Choose an action from the list of available actions.
-    # For example, action = 0 means do nothing
-    #              action = 1 means press 'right' button
-    #              action = 2 means press 'right' and 'A' buttons at the same time
-
-
-
-
     #Mario Jump path checker
     def is_overlapping(top_left1, bottom_right1, top_left2, dimensions2):
         overlap_x = top_left2[0] + dimensions2[0] > top_left1[0] and top_left2[0] < bottom_right1[0]
@@ -384,7 +249,7 @@ def make_action(screen, info, step, env, prev_action):
 
     def gap_check(mario_location, block_locations):
         mario_x, mario_y = mario_location
-        scan_width = 30
+        scan_width = 40
 
         for x in range (mario_x, mario_x + scan_width):
             block_below = False
@@ -401,7 +266,7 @@ def make_action(screen, info, step, env, prev_action):
                         break
 
             if not block_below:
-                print(f"Gap is detected at x range : {mario_x} to {x}, y range : {mario_y} to {GROUND_LEVEL_Y}")
+                #print(f"Gap is detected at x range : {mario_x} to {x}, y range : {mario_y} to {GROUND_LEVEL_Y}")
                 
                 distance_to_gap = mario_x - x
 
@@ -431,7 +296,7 @@ def make_action(screen, info, step, env, prev_action):
 
                 
                 if(mario_y < block_y):
-                    print("Mario is above pipe")
+                    #print("Mario is above pipe")
                     return 1
                 
                 if (block_x - mario_x < 20):
@@ -456,7 +321,7 @@ def make_action(screen, info, step, env, prev_action):
            # print("Mario_x position is ", mario_x, mario_y)
            # print("The block x and y position are ", block_x, block_y)
             if block_name == "block" and (block_x - mario_x) <= stair_x_threshold and abs(mario_y - block_y) <= stair_y_threshold:
-                print("There is a stair infront")
+                #print("There is a stair infront")
                 return True
         return False
 
@@ -612,15 +477,16 @@ def make_action(screen, info, step, env, prev_action):
         
         
         
-        
-        
+        jump_counter = 0
+        long_jump_threshold = 20
+        is_long_jumping = False
         if gap_check(location, block_locations) == 6:
             return 6
-        if gap_check(location, block_locations) == 2:
+        if gap_check(location, block_locations) == 3:
             return 3
         if gap_check(location, block_locations) == 4:
-          #  print("Jumping due to the gap")
             return 4
+
         
         #pipe method use
 
@@ -697,7 +563,6 @@ def make_action(screen, info, step, env, prev_action):
 
 ################################################################################
 
-
 env = gym.make("SuperMarioBros-1-1-v0", apply_api_compatibility=True, render_mode="none")
 env = JoypadSpace(env, SIMPLE_MOVEMENT)
 actions_per_episode = []
@@ -705,12 +570,15 @@ scores_per_episode = []
 distances_per_episode = []
 coins_per_episode = []
 in_game_times = []
+kills_per_episode = []
 obs = None
 done = True
 env.reset()
 action_count = 0
 episode_count = 0
 max_episodes = 50 
+current_kills = 0
+previous_score = 0
 
 for step in range(100000):
     if obs is not None:
@@ -720,7 +588,9 @@ for step in range(100000):
 
     obs, reward, terminated, truncated, info = env.step(action)
     action_count += 1
-
+    score_difference = info['score'] - previous_score
+    if score_difference == 100:
+        current_kills += 1
     if info.get('flag_get'):
             print("Mario reached the flag!")
             time_taken_game = 400 - info['time']
@@ -736,8 +606,11 @@ for step in range(100000):
         scores_per_episode.append(info['score'])
         distances_per_episode.append(info['x_pos'])
         coins_per_episode.append(info['coins'])
+        kills_per_episode.append(current_kills)
 
-        action_count = 0        
+        action_count = 0    
+        current_kills = 0 
+        previous_score = 0     
         env.reset()
 
         if episode_count >= max_episodes:
@@ -778,6 +651,12 @@ plt.plot(coins_per_episode, label='Coins Collected', color='gold')
 plt.xlabel('Episode')
 plt.ylabel('Coins Collected')
 plt.title('Coins Collected per Episode')
+
+plt.subplot(2, 3, 6)
+plt.plot(kills_per_episode, label='Kills', color='red')
+plt.xlabel('Episode')
+plt.ylabel('Kills')
+plt.title('Kills per Episode')
 
 plt.tight_layout()
 plt.show()
