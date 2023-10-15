@@ -277,9 +277,11 @@ jump_counter = 0
 is_short_jumping = False
 short_jump_threshhold = 2
 
+momentum = 0
+
 def make_action(screen, info, step, env, prev_action):
 
-    global last_mario_x, static_frame_count, last_enemy_x, last_mario_y, is_in_air, last_action, stair_locator, pipe_stuck, MARIO_MAX_JUMP_HEIGHT, GROUND_LEVEL_Y, stair_x_threshold, stair_y_threshold, jump_counter, is_short_jumping, short_jump_threshhold
+    global last_mario_x, static_frame_count, last_enemy_x, last_mario_y, is_in_air, last_action, stair_locator, pipe_stuck, MARIO_MAX_JUMP_HEIGHT, GROUND_LEVEL_Y, stair_x_threshold, stair_y_threshold, jump_counter, is_short_jumping, short_jump_threshhold, momentum
 
 
     mario_status = info["status"]
@@ -410,6 +412,7 @@ def make_action(screen, info, step, env, prev_action):
 
                 if 0 < distance_to_gap < 10:
                    # print ("the running distance is :, therfore go left", distance_to_gap)
+                    momentum = abs(momentum - 5)
                     return 6 # move left for running start   
                 if distance_to_gap > 30:
                   #  print("getting a run start")
@@ -502,7 +505,9 @@ def make_action(screen, info, step, env, prev_action):
             if last_action == 4:
                 last_action = 0
                # print("Letting go of jump")
+                momentum -= 1
                 return 0
+                
             else:
                 last_action = 4
                # print("Jumping cuz stuck")
@@ -528,13 +533,27 @@ def make_action(screen, info, step, env, prev_action):
             #print("enemy:", x, y, width, height, enemy_name)
             #print(f"Mario x position is {mario_x} and y position is {mario_y}")
 
+            if (momentum >= 45):
+                momentum = 45
+            
+
             if(y <= GROUND_LEVEL_Y):
 
                 enemy_distance = abs(mario_x - x)
 
+                print(f"the momentum is{momentum}")
 
-                if (enemy_distance <= 30):
-                   # print("The distance of enemy is :", enemy_distance)
+
+                if (55 <= enemy_distance <= 60):
+                    if (momentum <= 40):
+                                short_jump_threshhold = 15
+                    if (momentum > 40):
+                                short_jump_threshhold = 2
+
+
+
+                if (enemy_distance <= 52):
+                    print("The distance of enemy is :", enemy_distance)
                    # print("Enemy is in jumpable range")
 
                     block_in_path = False
@@ -546,10 +565,11 @@ def make_action(screen, info, step, env, prev_action):
                                 block_in_path = True
                                 break
                         if block_in_path:
-                            print("Block was in the way")
+                          #  print("Block was in the way")
+                            momentum = abs(momentum - 5)
                             return 6 # Move left
                         else:
-                            print("Block not in jump path and i should jump now")
+                           # print("Block not in jump path and i should jump now")
                             
 
                             min_air_distance_enemy = y + 5
@@ -559,28 +579,31 @@ def make_action(screen, info, step, env, prev_action):
                                 
                                 
                                 if (mario_x < x):
-                                    print("Enemy above on the right move to left")
+                                  #  print("Enemy above on the right move to left")
+                                    momentum = abs(momentum - 5)
                                     return 6 # move left to avoid
                                 if (mario_x > x):   
-                                    print("Enemy above on the left move to right")
+                                  #  print("Enemy above on the left move to right")
                                     return 3 #move right to above
                                     
                             if is_in_air ==  True and min_air_distance_mario < y:
                                 if (mario_x < x):
-                                    print("Mario needs to move right to jump on him")
+                                  #  print("Mario needs to move right to jump on him")
+                                    momentum += 1
                                     return 1
                                 
                                 if (mario_x > x):
-                                    print("Mario needs to move left to jump on him")
+                                  #  print("Mario needs to move left to jump on him")
                                     return 6
                                 if (mario_x == x):
-                                    print("Mario is directly on top")
+                                  #  print("Mario is directly on top")
+                                    momentum -= 1
                                     return 0
                                 
                             
                             
                             
-                            if (enemy_distance < 15 and x - mario_x > 0):
+                            if (enemy_distance < 25 and x - mario_x > 0):
                                 #print("ENEMY too close gotta move left")
                                 return 6# move left away from enemy as too close to jump
                             
@@ -588,10 +611,11 @@ def make_action(screen, info, step, env, prev_action):
                                 
                                 
                                 if (mario_x < x):
-                                    print("Enemy above on the right move to left")
+                                  #  print("Enemy above on the right move to left")
+                                    momentum = abs(momentum - 5)
                                     return 6 # move left to avoid
                                 if (mario_x > x):   
-                                    print("Enemy above on the left move to right")
+                                   # print("Enemy above on the left move to right")
                                     return 3 #move right to above
 
 
@@ -601,6 +625,7 @@ def make_action(screen, info, step, env, prev_action):
                                 print("Started short jump")
                                 return 4 # start jump
                             elif is_short_jumping:
+                                print(f"This is the threshold doing it with {short_jump_threshhold}")
                                 print("Doing the short jump")
                                 jump_counter += 1
                                 if jump_counter < short_jump_threshhold:
@@ -608,6 +633,7 @@ def make_action(screen, info, step, env, prev_action):
                                 else:
                                     print("Short jump reset time")
                                     is_short_jumping = False #reset jump state
+                                    momentum -= 0
                                     return 0
 
                 
@@ -652,6 +678,7 @@ def make_action(screen, info, step, env, prev_action):
                 if pipe_stuck >= 100:
                   #  print("Probs stuck in between pipe, letting go of jump")
                     pipe_stuck = 0 #rest
+                    momentum -= 1
                     return 0
                 return 4
             if pipe_check == 2:
@@ -694,6 +721,7 @@ def make_action(screen, info, step, env, prev_action):
         
     
     #print("I reached i should be moving right")
+    momentum += 1
     return 1
 
 
