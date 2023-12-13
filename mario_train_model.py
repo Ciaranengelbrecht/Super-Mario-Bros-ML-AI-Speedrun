@@ -1,5 +1,4 @@
-#Ciaran Engelbrecht – 23169641
-#Sriniketh Karlapudi – 23262446
+
 import gym
 from nes_py.wrappers import JoypadSpace
 from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
